@@ -78,7 +78,7 @@ class StableDiffusionProcessing():
     """
     The first set of paramaters: sd_models -> do_not_reload_embeddings represent the minimum required to create a StableDiffusionProcessing
     """
-    def __init__(self, sd_model=None, outpath_samples=None, outpath_grids=None, prompt: str = "", styles: List[str] = None, seed: int = -1, subseed: int = -1, subseed_strength: float = 0, seed_resize_from_h: int = -1, seed_resize_from_w: int = -1, seed_enable_extras: bool = True, sampler_index: int = 0, batch_size: int = 1, n_iter: int = 1, steps: int = 50, cfg_scale: float = 7.0, width: int = 512, height: int = 512, restore_faces: bool = False, tiling: bool = False, do_not_save_samples: bool = False, do_not_save_grid: bool = False, extra_generation_params: Dict[Any, Any] = None, overlay_images: Any = None, negative_prompt: str = None, eta: float = None, do_not_reload_embeddings: bool = False, denoising_strength: float = 0, ddim_discretize: str = None, s_churn: float = 0.0, s_tmax: float = None, s_tmin: float = 0.0, s_noise: float = 1.0, override_settings: Dict[str, Any] = None):
+    def __init__(self, sd_model=None, outpath_samples=None, outpath_grids=None, prompt: str = "", styles: List[str] = None, seed: int = -1, subseed: int = -1, subseed_strength: float = 0, seed_resize_from_h: int = -1, seed_resize_from_w: int = -1, seed_enable_extras: bool = True, sampler_index: int = 0, batch_size: int = 1, n_iter: int = 1, steps: int = 50, cfg_scale: float = 7.0, width: int = 512, height: int = 512, restore_faces: bool = False, tiling: bool = False, do_not_save_samples: bool = False, do_not_save_grid: bool = False, extra_generation_params: Dict[Any, Any] = None, overlay_images: Any = None, negative_prompt: str = None, eta: float = None, do_not_reload_embeddings: bool = False, denoising_strength: float = 0, ddim_discretize: str = None, s_churn: float = 0.0, s_tmax: float = None, s_tmin: float = 0.0, s_noise: float = 1.0, override_settings: Dict[str, Any] = None, inpainting_mask_weight: float = 101.0):
         self.sd_model = sd_model
         self.outpath_samples: str = outpath_samples
         self.outpath_grids: str = outpath_grids
@@ -109,6 +109,12 @@ class StableDiffusionProcessing():
         self.paste_to = None
         self.color_corrections = None
         self.denoising_strength: float = denoising_strength
+
+        if inpainting_mask_weight == 101.0:
+            self.inpainting_mask_weight = getattr(self, "inpainting_mask_weight", shared.opts.inpainting_mask_weight)
+        else:
+            self.inpainting_mask_weight: float = inpainting_mask_weight
+        
         self.sampler_noise_scheduler_override = None
         self.ddim_discretize = ddim_discretize or opts.ddim_discretize
         self.s_churn = s_churn or opts.s_churn
@@ -174,8 +180,10 @@ class StableDiffusionProcessing():
         conditioning_image = torch.lerp(
             source_image,
             source_image * (1.0 - conditioning_mask),
-            getattr(self, "inpainting_mask_weight", shared.opts.inpainting_mask_weight)
+            self.inpainting_mask_weight
+            #getattr(self, "inpainting_mask_weight", shared.opts.inpainting_mask_weight)
         )
+        print('inpainting_mask_weight:', self.inpainting_mask_weight)
         
         # Encode the new masked image using first stage of network.
         conditioning_image = self.sd_model.get_first_stage_encoding(self.sd_model.encode_first_stage(conditioning_image))
@@ -724,6 +732,10 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
 
     def __init__(self, init_images: list=None, resize_mode: int=0, denoising_strength: float=0.75, mask: Any=None, mask_blur: int=4, inpainting_fill: int=0, inpaint_full_res: bool=True, inpaint_full_res_padding: int=0, inpainting_mask_invert: int=0, **kwargs):
         super().__init__(**kwargs)
+
+        print('denoising_strength:',denoising_strength)
+        for i, v in kwargs.items():
+            print(i)
 
         self.init_images = init_images
         self.resize_mode: int = resize_mode
